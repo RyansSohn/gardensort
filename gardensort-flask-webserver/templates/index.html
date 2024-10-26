@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Title</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='css/styles.css')}}" type="text/css">
+    <script src="{{url_for('static', filename='script/jquery.js')}}"></script>
+    <link rel="icon" type="image/x-icon" href="{{url_for('static', filename='images/Technik.ico')}}">
+    <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="top">
+            <div class="logo">
+                <i class="bx bx-leaf"></i>  
+                <span>Garden Sort</span>
+            </div>
+            <i class="bx bx-menu" id="btn"></i>
+        </div>    
+        <div class="user">
+            <a href="a">
+                <img src="{{url_for('static', filename='images/Technik.ico')}}" alt="me" class="user-img">
+                <div>
+                    <p class="bold">Florian</p>
+                    <p>Admin</p>
+                </div>
+            </a> 
+            <!-- <span class="tooltip">Benutzer</span>    -->
+        </div>
+        <ul>
+            <li>
+                <a href="a">
+                    <i class="bx bxs-grid-alt"></i>
+                    <span class="nav-item">Dashboard</span>
+                </a>
+                <span class="tooltip">Dashboard</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bx-leaf"></i>
+                    <span class="nav-item">Pflanzen</span>
+                </a>
+                <span class="tooltip">Pflanzen</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bx-dollar-circle"></i>
+                    <span class="nav-item">Kosten</span>
+                </a>
+                <span class="tooltip">Kosten</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bxs-grid-alt"></i>
+                    <span class="nav-item">Ausssat</span>
+                </a>
+                <span class="tooltip">Ausssat</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bxs-grid-alt"></i>
+                    <span class="nav-item">Ernte</span>
+                </a>
+                <span class="tooltip">Ernte</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bxs-grid-alt"></i>
+                    <span class="nav-item">Zubereitung</span>
+                </a>
+                <span class="tooltip">Zubereitung</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bx-droplet"></i>
+                    <span class="nav-item">Bewässerung</span>
+                </a>
+                <span class="tooltip">Bewässerung</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bx-cog"></i>
+                    <span class="nav-item">Einstellungen</span>
+                </a>
+                <span class="tooltip">Einstellungen</span>
+            </li>
+            <li>
+                <a href="a">
+                    <i class="bx bx-log-out"></i>
+                    <span class="nav-item">Logout</span>
+                </a>
+                <span class="tooltip">Logout</span>
+            </li>
+        </ul>
+    </div>
+
+    <div class="main-content">
+        <div class="container">
+            <h1>MMW67</h1>
+        </div>
+    </div>
+
+    
+
+</body>
+
+<script src="{{url_for('static', filename='script/app.js')}}"></script>
+
+</html>
