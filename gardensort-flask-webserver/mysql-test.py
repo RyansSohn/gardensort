@@ -24,17 +24,32 @@ class Database_CRUD:
 
         self.db_cursor = self.gardensort_db.cursor()
 
-    def write_to_database(self, table, data_list):
-
-        self.connect_to_database()
+    def get_table_columns(self, table):
 
         try:
-            # Abrufen der Tabellenspalten und Filtern nach Nicht-PRI-Spalten
+            self.connect_to_database()
+
             self.db_cursor.execute(f"DESCRIBE {table}")
-            table_columns = self.db_cursor.fetchall()
-            
+            columns = self.db_cursor.fetchall()
+
+            first_column_name = columns[0][0]
+        
+        finally:
+            self.db_cursor.close()
+            self.gardensort_db.close()
+            print("Connection closed after reading columns")
+
+        return columns, first_column_name
+
+    def write_to_database(self, table, data_list):
+
+        try:
+            columns, first_column_name = self.get_table_columns(table)
+
+            self.connect_to_database()            
+
             # Filtern von Spalten ohne 'PRI'-Typ
-            non_primary_columns = [col[0] for col in table_columns if col[3] != "PRI"]
+            non_primary_columns = [col[0] for col in columns if col[3] != "PRI"]
             column_count = len(non_primary_columns)
 
             # Überprüfung: Anzahl der Daten in `data_list` muss der Anzahl der Spalten ohne 'PRI' entsprechen
@@ -78,22 +93,16 @@ class Database_CRUD:
 
     def delete_from_database(self, table, reference_number):
 
-        self.connect_to_database()
-
         try:
-            # Ermitteln des Namens der ersten Spalte
-            self.db_cursor.execute(f"DESCRIBE {table}")
-            columns = self.db_cursor.fetchall()
-            first_column_name = columns[0][0]
+            columns, first_column_name = self.get_table_columns(table)
 
-            # Überprüfen, ob die Referenznummer existiert
-            check_query = f"SELECT 1 FROM {table} WHERE {first_column_name} = %s"
-            self.db_cursor.execute(check_query, (reference_number,))
-            result = self.db_cursor.fetchone()
+            self.connect_to_database()
 
-            if not result:
-                print(f"Referenznummer {reference_number} existiert nicht in der Tabelle {table}.")
-                return
+            # Check if reference number is existent
+            self.db_cursor.execute(f"SELECT 1 FROM {table} WHERE {first_column_name} = %s", (reference_number,))
+            if not self.db_cursor.fetchone():
+                print(f"refrence number {reference_number} doesn't exist in {table}.")
+                return None
 
             # Prüfen, ob die Referenznummer in anderen Tabellen als Fremdschlüssel verwendet wird
             self.db_cursor.execute(f"""
@@ -105,8 +114,7 @@ class Database_CRUD:
             foreign_key_entries = self.db_cursor.fetchall()
 
             for fk_table, fk_column in foreign_key_entries:
-                fk_check_query = f"SELECT 1 FROM {fk_table} WHERE {fk_column} = %s"
-                self.db_cursor.execute(fk_check_query, (reference_number,))
+                self.db_cursor.execute(f"SELECT 1 FROM {fk_table} WHERE {fk_column} = %s", (reference_number,))
                 if self.db_cursor.fetchone():
                     print(f"Die Referenznummer {reference_number} wird in der Tabelle {fk_table} in der Spalte {fk_column} verwendet.")
                     return
@@ -123,13 +131,156 @@ class Database_CRUD:
             self.gardensort_db.close()
             print("Connection closed after deleting")
 
+    def read_reference_by_term(self, table, column, term):
 
+        try:
+            columns, first_column_name = self.get_table_columns(table)
+
+            self.connect_to_database()
+
+            # Prüfen, ob die angegebene Spalte existiert
+            if column not in [col[0] for col in columns]:
+                print(f"Spalte '{column}' existiert nicht in der Tabelle '{table}'.")
+                return None
+
+            # Query: Erste Zeile mit dem Begriff in der angegebenen Spalte abrufen
+            query = f"SELECT {first_column_name}, {column} FROM {table} WHERE {column} = %s LIMIT 1"
+            self.db_cursor.execute(query, (term,))
+            result = self.db_cursor.fetchone()
+
+            if result:
+                reference_number, column_value = result
+                print(f"Referenznummer: {reference_number}, {column}: {column_value}")
+                return reference_number, column_value
+            else:
+                print(f"Kein Eintrag mit dem Begriff '{term}' in Spalte '{column}' gefunden.")
+                return None
+        except sql.Error as e:
+            print(f"Ein Fehler ist aufgetreten: {e}")
+            return None
+        finally:
+            self.db_cursor.close()
+            self.gardensort_db.close()
+            print("Connection closed after reading refrence number")
+
+    def read_term_by_refrence(self, table, column, reference_number):
+
+        try:
+            columns, first_column_name = self.get_table_columns(table)
+
+            self.connect_to_database()
+
+            # Prüfen, ob die angegebene Spalte existiert
+            if column not in [col[0] for col in columns]:
+                print(f"Spalte '{column}' existiert nicht in der Tabelle '{table}'.")
+                return None
+
+            # Check if reference number is existent
+            self.db_cursor.execute(f"SELECT 1 FROM {table} WHERE {first_column_name} = %s", (reference_number,))
+            if not self.db_cursor.fetchone():
+                print(f"refrence number {reference_number} doesn't exist in {table}.")
+                return None
+
+            # Wert aus der angegebenen Spalte basierend auf der Referenznummer abfragen
+            query = f"SELECT {column} FROM {table} WHERE {first_column_name} = %s"
+            self.db_cursor.execute(query, (reference_number,))
+            result = self.db_cursor.fetchone()
+
+            if result:
+                print(f"Wert aus Spalte '{column}' für Referenznummer {reference_number}: {result[0]}")
+                return result[0]
+            else:
+                print(f"Keine Daten für Referenznummer {reference_number} in der Tabelle {table} gefunden.")
+                return None
+        except sql.Error as e:
+            print(f"Ein Fehler ist aufgetreten: {e}")
+            return None
+        finally:
+            self.db_cursor.close()
+            self.gardensort_db.close()
+            print("Connection closed after reading term")
+
+    def update_value_by_reference(self, table, column, reference_number, new_value):
+
+        try:
+            columns, first_column_name = self.get_table_columns(table)
+
+            self.connect_to_database()
+
+            # Prüfen, ob die angegebene Spalte existiert
+            column_names = [col[0] for col in columns]
+            if column not in column_names:
+                print(f"Spalte '{column}' existiert nicht in der Tabelle '{table}'.")
+                return None
+
+            # Überprüfen, ob die Referenznummer existiert
+            self.db_cursor.execute(f"SELECT 1 FROM {table} WHERE {first_column_name} = %s", (reference_number,))
+            if not self.db_cursor.fetchone():
+                print(f"Referenznummer {reference_number} existiert nicht in der Tabelle {table}.")
+                return None
+
+            # Wert in der angegebenen Spalte für die Referenznummer aktualisieren
+            self.db_cursor.execute(f"UPDATE {table} SET {column} = %s WHERE {first_column_name} = %s", (new_value, reference_number))
+            self.gardensort_db.commit()
+
+            print(f"Spalte '{column}' für Referenznummer {reference_number} wurde auf '{new_value}' aktualisiert.")
+        except sql.Error as e:
+            print(f"Ein Fehler ist aufgetreten: {e}")
+        finally:
+            self.db_cursor.close()
+            self.gardensort_db.close()
+            print("Connection closed after updating value")
+
+    def update_row_by_reference(self, table, reference_number, update_data):
+
+        try:
+            columns, first_column_name = self.get_table_columns(table)
+
+            self.connect_to_database()
+
+            # Überprüfen, ob die Referenznummer existiert
+            self.db_cursor.execute(f"SELECT 1 FROM {table} WHERE {first_column_name} = %s", (reference_number,))
+            if not self.db_cursor.fetchone():
+                print(f"Referenznummer {reference_number} existiert nicht in der Tabelle {table}.")
+                return None
+
+            # Alle Spalten, die nicht der Primärschlüssel sind, extrahieren
+            non_primary_columns = [col[0] for col in columns if col[3] != "PRI"]
+            
+            # Anzahl der zu aktualisierenden Spalten überprüfen
+            if len(update_data) != len(non_primary_columns):
+                print(f"Error: Data entry {update_data} with {len(update_data)} columns does not match the column count {len(non_primary_columns)} for table '{table}'.")
+                return None
+            
+            # Erstellen der SET-Klausel für die UPDATE-Abfrage
+            set_clause = ", ".join([f"{non_primary_columns[i]} = %s" for i in range(len(non_primary_columns))])
+
+            # Ausführen der UPDATE-Abfrage
+            update_query = f"UPDATE {table} SET {set_clause} WHERE {first_column_name} = %s"
+            self.db_cursor.execute(update_query, update_data + [reference_number])
+            self.gardensort_db.commit()
+
+            print(f"Die Zeile mit Referenznummer {reference_number} wurde erfolgreich aktualisiert.")
+
+        except sql.Error as e:
+            print(f"Ein Fehler ist aufgetreten: {e}")
+
+        finally:
+            self.db_cursor.close()
+            self.gardensort_db.close()
+            print("Connection closed after updating row")
 
 
 database_instance = Database_CRUD()
 # database_instance.write_to_database("plant_kind",  [("5", "100", "Buschtomate","Lycopersicon esculentum L")])
 # database_instance.write_to_database("plant_version",  [("1", "104", "Buschtomate","10.09.24", "2", "F1", "999")])
 # database_instance.delete_from_database("plant_version", 7)
+# database_instance.read_reference_by_term("stores", "store", "Bauhaus")
+# database_instance.read_term_by_refrence("stores", "store", "100")
+# database_instance.update_value_by_reference("plant_version", "name", "4", "Buschtomate")
+# database_instance.update_row_by_reference("plant_version",4, ["1", "104", "Buschtomate","10.09.25", "3", "F133w", "99"])
+
+
 
 
 
